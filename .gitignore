@@ -1,0 +1,6 @@
+*.obj
+*.exe
+*.map
+*.lst
+*.com
+test.asm
