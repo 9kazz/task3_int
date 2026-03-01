@@ -1,4 +1,5 @@
 .286
+JUMPS
 locals @@
 .model tiny
 .code
@@ -38,19 +39,19 @@ Start:              mov ax, 3509h               ; find out adr of int handler
 ;------------------------------------------------------------------------------------------------------------------
 
 New_int             proc
-                    PUSH ax bx cx dx es
+                    PUSH ax dx di es ds
 
                     in al, 60h                  ; al = scan-code        
-                    cmp al, 1                   ; ESC scan-code
+                    cmp al, 2                   ; scan-code to trigger regs dump
                     jne @@end_of_int
 
                     PUSH cs cs
                     POP ds es
 
                     mov di, offset Draw_buf     ; di -> Draw_buf
-                    add di, (10 * 80 + 40) * 2        
+                    add di, (5 * 80 + 40) * 2        
 
-                    irp REG, <ax, bx, cx, dx>   ; print regs
+                    irp REG, <ax, bx, cx, dx, si, di, bp, sp, ds, es, ss, cs>   ; print regs
                     mov dx, REG
                     CALL Itoa
                     add di, (80 - 4) * 2
@@ -69,7 +70,7 @@ New_int             proc
                     mov al, 20h                 ; report PPI about end of int
                     out 20h, al
 
-                    POP es dx cx bx ax
+                    POP ds es di dx ax
                     
                     db 0eah                     ; jmp far to old int
                     Old_09_ofs dw 0
@@ -85,7 +86,7 @@ New_int             proc
 ;           di -> memmory to save string
 ; Exit:     di += 4 (count of hex digit)
 ; Exp:      --
-; Destr:    ax dx
+; Destr:    ax dx | di
 ; Save:     cx
 ;------------------------------------------------------------------------------------------------------------------
 
