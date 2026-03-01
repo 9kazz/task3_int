@@ -4,13 +4,6 @@ locals @@
 .code
 org 100h
 
-;-------------------------------------------------------------------------------------------------
-
-Print_buf           db 80 * 25 dup (0)
-Print_buf_Len       = 80 * 25
-
-;-------------------------------------------------------------------------------------------------
-
 Start:              mov ax, 3509h               ; find out adr of int handler
                     int 21h
                     mov Old_09_ofs, bx
@@ -32,18 +25,42 @@ Start:              mov ax, 3509h               ; find out adr of int handler
                     inc dx                      ; division remainder
                     int 21h
 
+
+;                   NEW_INT
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    this code block replaces original 09h interrapt. Prints all registers and flags into VM 
+;           by pressing "r" on keyboard
+; Entry:    --
+; Exit:     --
+; Exp:      --
+; Destr:    --
+; Save:     ax, bx, cx, dx, es
+;------------------------------------------------------------------------------------------------------------------
+
 New_int             proc
-                    push ax bx cx dx es
+                    PUSH ax bx cx dx es
 
-                    push 0b800h
-                    pop es                      ; es -> VM
-                    mov bx, (5 * 80d + 40d) * 2 ; offset in VM
-                    mov ah, 4eh                 ; color attribute
+                    in al, 60h                  ; al = scan-code        
+                    cmp al, 1                   ; ESC scan-code
+                    jne @@end_of_int
 
-                    ; in al, 60h                  ; al = scan-code        
-                    ; mov es:[bx], ax
+                    PUSH cs cs
+                    POP ds es
 
-                    in al, 61h
+                    mov di, offset Draw_buf     ; di -> Draw_buf
+                    add di, (10 * 80 + 40) * 2        
+
+                    irp REG, <ax, bx, cx, dx>   ; print regs
+                    mov dx, REG
+                    CALL Itoa
+                    add di, (80 - 4) * 2
+                    endm
+
+                    PUSH 0b800h
+                    POP es                      ; es -> VM
+                    CALL Dump_Draw_buf
+
+    @@end_of_int:   in al, 61h
                     or al, 80h                  ; port blinking
                     out 61h, al
                     and al, not 80h
@@ -52,7 +69,7 @@ New_int             proc
                     mov al, 20h                 ; report PPI about end of int
                     out 20h, al
 
-                    pop es dx cx bx ax
+                    POP es dx cx bx ax
                     
                     db 0eah                     ; jmp far to old int
                     Old_09_ofs dw 0
@@ -60,12 +77,6 @@ New_int             proc
 
                     iret                        ; return from jmp far
                     endp
-                        
-;-------------------------------------------------------------------------------------------------
-
-End_of_prog:                                    ; is used to define size of all program code
-end                 Start                    
-
 
 ;                   ITOA
 ;------------------------------------------------------------------------------------------------------------------
@@ -81,6 +92,7 @@ end                 Start
 Itoa                proc
                     PUSH cx
 
+                    mov ah, 070h                ; attribute
                     mov cx, 4
 
     @@get_one_sign: mov al, dh                  ; get 4 highest bytes in temp reg
@@ -91,7 +103,7 @@ Itoa                proc
                     ja @@trans2letter
 
     @@trans2digit:  add al, 48                  ; al = ASCII digit
-    @@fill_buf:     stosb                       ; store ASKII in Print_buf 
+    @@fill_buf:     stosw                       ; store ASKII in buffer
 
                     loop @@get_one_sign
 
@@ -103,7 +115,7 @@ Itoa                proc
 
                     endp
 
-;                   DUMP_PRINT_BUF
+;                   DUMP_DRAW_BUF
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:    print data from Print_buf into VM
 ; Entry:    --
@@ -113,23 +125,32 @@ Itoa                proc
 ; Save:     cx, si, di
 ;------------------------------------------------------------------------------------------------------------------
 
+Dump_Draw_buf       proc
 
-Dump_Print_buf:     proc
+                    PUSH cx si di
 
-                    PUSH cx, si, di
+                    mov cx, Draw_buf_Len
 
-                    mov cx, Print_buf_Len
-                    mov ah, 70h                 ; attribute
-
-                    mov si, offset Print_buf    ; si -> start of Print_buf
-                    xor di, di                  ; fi -> start of VM
+                    mov si, offset Draw_buf    ; si -> start of Print_buf
+                    xor di, di                 ; di -> start of VM
                     
     @@print_one_char:
-                    lodsb 
+                    lodsw 
                     stosw
                     loop @@print_one_char
 
-                    POP di, si, cx
+                    POP di si cx
                     ret
 
                     endp
+
+;-------------------------------------------------------------------------------------------------
+
+; INIT BUFFERS
+Draw_buf            db 80 * 25 * 2 dup (0)
+Draw_buf_Len        = 80 * 25 * 2
+                
+;-------------------------------------------------------------------------------------------------
+
+End_of_prog:                                    ; is used to define size of all program code
+end                 Start                    
