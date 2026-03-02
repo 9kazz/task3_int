@@ -6,7 +6,7 @@ locals @@
 org 100h
 
 ;                   MACROSES & DEFINES
-;=======================================================================================================
+;==================================================================================================================
 
 ;                   PRINT_STR
 ;------------------------------------------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ PRINT_STR           macro str_adr, str_len
                         loop @@print_one_char
                     endm
 
-;=======================================================================================================
+;==================================================================================================================
 
 Start:              mov ax, 3509h               ; find out adr of int handler
                     int 21h
@@ -70,6 +70,7 @@ New_int             proc
                     cmp al, 2                   ; scan-code to trigger regs dump
                     jne @@end_of_int
 
+                    PUSHF
                     PUSH ss es ds sp bp di si dx cx bx ax   ; save regs
 
                     PUSH cs cs
@@ -79,29 +80,58 @@ New_int             proc
                     add di, (5 * 80 + 40) * 2        
 
                     mov cx, 11                  ; count of printing regs
-                    mov bx, sp                  ; bx -> head of the stack
-                    mov si, offset Reg_prefix_arr
+                    mov bp, sp                  ; bp -> head of the stack
 
-    @@print_one_reg:
-        @@print_prefix:
+                    PUSHF 
+                    POP bx                      ; bx = flag-reg
+                    CALL Repack_flag_reg        ; bx = repacked flag-reg
+                    mov si, offset Prefix_arr   ; si -> Prefix_arr
+
+    @@print_one_line:
+                    PUSH di                         ; save start of cur line
+
+        @@print_reg_prefix:
                     lodsw
-                    cmp ax, '$'
-                    je  @@print_value
+                    cmp ax, '$'                     ; '$' means end of reg-prefix
+                        je  @@print_reg_value
                     stosw
-                    jmp @@print_prefix
+                    jmp @@print_reg_prefix
 
-        @@print_value:
-                    mov dx, [bx]
+        @@print_reg_value:
+                    mov dx, [bp]
                     CALL Itoa
-                    add di, (80 - Reg_prefix_len - 4) * 2       ; new line
-                    add bx, 2                                   ; next reg
-                    loop @@print_one_reg
+
+
+        @@print_flag_prefix:
+                    lodsw
+                    cmp ax, '$'                     ; '$' means end of flag-prefix
+                        je @@print_flag_value 
+                    cmp ax, '%'                     ; '%' means end of whole line (no more flags)
+                        je @@end_of_cycle 
+                    stosw
+                    jmp @@print_flag_prefix
+
+        @@print_flag_value:
+                    mov al, bl
+                    and al, 1                   ; al = cur flag value
+                    add al, 48
+                    mov ah, 70h                 ; ah = attribute
+                    stosw                       
+
+                    shr bx, 1
+
+    @@end_of_cycle: POP di
+                    add di, 80 * 2              ; new line
+                    add bp, 2                   ; next reg
+                    
+                    loop @@print_one_line
 
                     PUSH 0b800h
                     POP es                      ; es -> VM
                     CALL Dump_Draw_buf
 
                     POP ax bx cx dx si di bp sp ds es ss        ; recover regs
+                    POPF
 
     @@end_of_int:   in al, 61h
                     or al, 80h                  ; port blinking
@@ -128,7 +158,7 @@ New_int             proc
 ;           di -> memmory to save string
 ; Exit:     di += 4 (count of hex digit)
 ; Exp:      --
-; Destr:    ax dx | di
+; Destr:    ax, dx | di
 ; Save:     cx
 ;------------------------------------------------------------------------------------------------------------------
 
@@ -187,28 +217,106 @@ Dump_Draw_buf       proc
 
                     endp
 
-;-------------------------------------------------------------------------------------------------
+;                   REPACK_FLAG_REG
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    repack flag-register`s flags into bx in order c-p-a-z-s-t-i-d-o to convenient handle.
+; Entry:    bx == flag-register
+; Exit:     bx == repacked flag-register
+; Exp:      --
+; Destr:    ax | bx
+; Note:     originaly in flag-register flags are located in appropriate order:
+;           c(0), p(2), a(4), z(6), s(7), t(8), i(9), d(10), o(11) 
+;           * numder of the register`s bit in the bracket    
+;------------------------------------------------------------------------------------------------------------------
 
-; INIT BUFFERS
+Repack_flag_reg     proc
+
+                    or ah, 1
+                    and ah, bl
+                    and ah, 1        ; ah = 0...0c (not hex num -- it`s flag configuration in the flag-register)
+
+                    irp MASK, <2, 4> ; after end of this macros ah = 0...apc, dx = ...oditsz0a0p
+                    shr bx, 1
+                    mov al, bl
+                    and al, MASK
+                    or ah, al
+                    endm
+
+                    shr bx, 1       ; bx = ...oditsz0a0
+                    and bx, 01F8h   ; bx = 0...0oditsz000
+                    or bl, ah       ; bx = 0...0oditszapc
+
+                    ret
+                    endp
+
+
+;                   INIT_DATA
+;==================================================================================================================
+
+; Buffers
 Draw_buf            db 80 * 25 * 2 dup (0)
 Draw_buf_Len        = 80 * 25 * 2
 
-; Prefixes to print registers
-Reg_prefix_len      = 5
+; ; Prefixes to print registers ('$' means end of prefix)
+; Reg_prefix_arr      dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ax = $"
+;                     dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bx = $"
+;                     dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "cx = $"
+;                     dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "dx = $"
+;                     dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "si = $"
+;                     dw 0700h + 'd', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "di = $"
+;                     dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bp = $"
+;                     dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "sp = $"
+;                     dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ds = $"
+;                     dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "es = $"
+;                     dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ss = $"
+                 
+; ; Prefixes to print flags ('%' means new line, '$' means end of prefix)              
+; Flag_prefix_arr     dw 0700h + ' ', 0700h + 'c', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " c = %"
+;                     dw 0700h + ' ', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " p = $"
+;                     dw 0700h + ' ', 0700h + 'a', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " a = $"
+;                     dw 0700h + ' ', 0700h + 'z', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " z = $"
+;                     dw 0700h + ' ', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " s = $"
+;                     dw 0700h + ' ', 0700h + 't', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " t = $"
+;                     dw 0700h + ' ', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " i = $"
+;                     dw 0700h + ' ', 0700h + 'd', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " d = $"
+;                     dw 0700h + ' ', 0700h + 'o', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " o = $"
+;                     dw '%'                                                                   ; "%"
+;                     dw '%'                                                                   ; "%"
 
-Reg_prefix_arr      dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ax = $"
+Prefix_arr      dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ax = $"
+                    dw 0700h + ' ', 0700h + 'c', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " c = $"
+
                     dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bx = $"
+                    dw 0700h + ' ', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " p = $"
+
                     dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "cx = $"
+                    dw 0700h + ' ', 0700h + 'a', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " a = $"
+
                     dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "dx = $"
+                    dw 0700h + ' ', 0700h + 'z', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " z = $"
+
                     dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "si = $"
+                    dw 0700h + ' ', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " s = $"
+
                     dw 0700h + 'd', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "di = $"
+                    dw 0700h + ' ', 0700h + 't', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " t = $"
+
                     dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bp = $"
+                    dw 0700h + ' ', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " i = $"
+
                     dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "sp = $"
+                    dw 0700h + ' ', 0700h + 'd', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " d = $"
+
                     dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ds = $"
+                    dw 0700h + ' ', 0700h + 'o', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " o = $"
+
                     dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "es = $"
+                    dw '%'                                                                   ; "%"
+
                     dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ss = $"
-                
-;-------------------------------------------------------------------------------------------------
+                    dw '%'                                                                   ; "%"
+
+;------------------------------------------------------------------------------------------------------------------
 
 End_of_prog:                                    ; is used to define size of all program code
 end                 Start                    
