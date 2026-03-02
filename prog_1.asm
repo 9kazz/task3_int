@@ -5,6 +5,31 @@ locals @@
 .code
 org 100h
 
+;                   MACROSES & DEFINES
+;=======================================================================================================
+
+;                   PRINT_STR
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    store string to es:[di] memmory addres
+; Entry:    str_adr == storing string addres
+;           str_len == storing string length
+; Exit:     si -> data after storing string
+; Exp:      es:[ds] -> wanted memmory location to store the string
+; Destr:    ax, cx | si
+; Save:     --
+;------------------------------------------------------------------------------------------------------------------
+
+PRINT_STR           macro str_adr, str_len
+                    mov si, str_adr
+                    mov cx, str_len
+                    @@print_one_char:
+                        lodsw
+                        stosw
+                        loop @@print_one_char
+                    endm
+
+;=======================================================================================================
+
 Start:              mov ax, 3509h               ; find out adr of int handler
                     int 21h
                     mov Old_09_ofs, bx
@@ -39,11 +64,13 @@ Start:              mov ax, 3509h               ; find out adr of int handler
 ;------------------------------------------------------------------------------------------------------------------
 
 New_int             proc
-                    PUSH ax dx di es ds
+                    PUSH ax
 
                     in al, 60h                  ; al = scan-code        
                     cmp al, 2                   ; scan-code to trigger regs dump
                     jne @@end_of_int
+
+                    PUSH ss es ds sp bp di si dx cx bx ax   ; save regs
 
                     PUSH cs cs
                     POP ds es
@@ -51,15 +78,30 @@ New_int             proc
                     mov di, offset Draw_buf     ; di -> Draw_buf
                     add di, (5 * 80 + 40) * 2        
 
-                    irp REG, <ax, bx, cx, dx, si, di, bp, sp, ds, es, ss, cs>   ; print regs
-                    mov dx, REG
+                    mov cx, 11                  ; count of printing regs
+                    mov bx, sp                  ; bx -> head of the stack
+                    mov si, offset Reg_prefix_arr
+
+    @@print_one_reg:
+        @@print_prefix:
+                    lodsw
+                    cmp ax, '$'
+                    je  @@print_value
+                    stosw
+                    jmp @@print_prefix
+
+        @@print_value:
+                    mov dx, [bx]
                     CALL Itoa
-                    add di, (80 - 4) * 2
-                    endm
+                    add di, (80 - Reg_prefix_len - 4) * 2       ; new line
+                    add bx, 2                                   ; next reg
+                    loop @@print_one_reg
 
                     PUSH 0b800h
                     POP es                      ; es -> VM
                     CALL Dump_Draw_buf
+
+                    POP ax bx cx dx si di bp sp ds es ss        ; recover regs
 
     @@end_of_int:   in al, 61h
                     or al, 80h                  ; port blinking
@@ -70,7 +112,7 @@ New_int             proc
                     mov al, 20h                 ; report PPI about end of int
                     out 20h, al
 
-                    POP ds es di dx ax
+                    POP ax
                     
                     db 0eah                     ; jmp far to old int
                     Old_09_ofs dw 0
@@ -150,6 +192,21 @@ Dump_Draw_buf       proc
 ; INIT BUFFERS
 Draw_buf            db 80 * 25 * 2 dup (0)
 Draw_buf_Len        = 80 * 25 * 2
+
+; Prefixes to print registers
+Reg_prefix_len      = 5
+
+Reg_prefix_arr      dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ax = $"
+                    dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bx = $"
+                    dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "cx = $"
+                    dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "dx = $"
+                    dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "si = $"
+                    dw 0700h + 'd', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "di = $"
+                    dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bp = $"
+                    dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "sp = $"
+                    dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ds = $"
+                    dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "es = $"
+                    dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ss = $"
                 
 ;-------------------------------------------------------------------------------------------------
 
