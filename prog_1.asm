@@ -76,17 +76,24 @@ New_int             proc
                     PUSH cs cs
                     POP ds es
 
-                    mov di, offset Draw_buf     ; di -> Draw_buf
-                    add di, (5 * 80 + 40) * 2        
-
                     mov cx, 11                  ; count of printing regs
                     mov bp, sp                  ; bp -> head of the stack
+                    mov di, offset Stack_buf 
+
+    @@save_stack:   mov ax, [bp + 30]           ; bp + 30 == the head of stack before int call
+                    stosw
+                    add bp, 2
+                    loop @@save_stack
+
+                    mov di, offset Draw_buf     ; di -> Draw_buf
+                    add di, (5 * 80 + 40) * 2        
 
                     PUSHF 
                     POP bx                      ; bx = flag-reg
                     CALL Repack_flag_reg        ; bx = repacked flag-reg
                     mov si, offset Prefix_arr   ; si -> Prefix_arr
 
+                    mov cx, 11                  ; count of printing regs
     @@print_one_line:
                     PUSH di                         ; save start of cur line
 
@@ -107,8 +114,8 @@ New_int             proc
                     lodsw
                     cmp ax, '$'                     ; '$' means end of flag-prefix
                         je @@print_flag_value 
-                    cmp ax, '%'                     ; '%' means end of whole line (no more flags)
-                        je @@end_of_cycle 
+                    cmp ax, '%'                     ; '%' means end of printing flag (no more flags)
+                        je @@print_stk_prefix
                     stosw
                     jmp @@print_flag_prefix
 
@@ -120,6 +127,23 @@ New_int             proc
                     stosw                       
 
                     shr bx, 1
+
+;-------------------------------- PRINT STACK ------------------------------------------------
+        @@print_stk_prefix:
+                    lodsw
+                    cmp ax, '$'                     ; '$' means end of reg-prefix
+                        je  @@print_stk_value
+                    stosw
+                    jmp @@print_stk_prefix
+
+        @@print_stk_value:
+                    PUSH bx              
+                    mov bx, 11   
+                    sub bx, cx
+                    shl bx, 1
+                    mov dx, [Stack_buf + bx]
+                    CALL Itoa
+                    POP bx
 
     @@end_of_cycle: POP di
                     add di, 80 * 2              ; new line
@@ -258,64 +282,52 @@ Repack_flag_reg     proc
 Draw_buf            db 80 * 25 * 2 dup (0)
 Draw_buf_Len        = 80 * 25 * 2
 
-; ; Prefixes to print registers ('$' means end of prefix)
-; Reg_prefix_arr      dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ax = $"
-;                     dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bx = $"
-;                     dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "cx = $"
-;                     dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "dx = $"
-;                     dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "si = $"
-;                     dw 0700h + 'd', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "di = $"
-;                     dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bp = $"
-;                     dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "sp = $"
-;                     dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ds = $"
-;                     dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "es = $"
-;                     dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ss = $"
-                 
-; ; Prefixes to print flags ('%' means new line, '$' means end of prefix)              
-; Flag_prefix_arr     dw 0700h + ' ', 0700h + 'c', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " c = %"
-;                     dw 0700h + ' ', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " p = $"
-;                     dw 0700h + ' ', 0700h + 'a', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " a = $"
-;                     dw 0700h + ' ', 0700h + 'z', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " z = $"
-;                     dw 0700h + ' ', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " s = $"
-;                     dw 0700h + ' ', 0700h + 't', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " t = $"
-;                     dw 0700h + ' ', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " i = $"
-;                     dw 0700h + ' ', 0700h + 'd', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " d = $"
-;                     dw 0700h + ' ', 0700h + 'o', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " o = $"
-;                     dw '%'                                                                   ; "%"
-;                     dw '%'                                                                   ; "%"
+Stack_buf           dw 11 dup(0)
 
+; Prefixes to print flags ('%' means new line, '$' means end of prefix)              
 Prefix_arr          dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ax = $"
                     dw 0700h + ' ', 0700h + 'c', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " c = $"
+                    dw ' ', '$'
 
                     dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bx = $"
                     dw 0700h + ' ', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " p = $"
+                    dw ' ', '$'
 
                     dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "cx = $"
                     dw 0700h + ' ', 0700h + 'a', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " a = $"
+                    dw ' ', '$'                
 
                     dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "dx = $"
                     dw 0700h + ' ', 0700h + 'z', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " z = $"
+                    dw ' ', '$'
 
                     dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "si = $"
                     dw 0700h + ' ', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " s = $"
+                    dw ' ', '$'
 
                     dw 0700h + 'd', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "di = $"
                     dw 0700h + ' ', 0700h + 't', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " t = $"
+                    dw ' ', '$'
 
                     dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "bp = $"
                     dw 0700h + ' ', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " i = $"
+                    dw ' ', '$'
 
                     dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "sp = $"
                     dw 0700h + ' ', 0700h + 'd', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " d = $"
+                    dw ' ', '$'
 
                     dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ds = $"
                     dw 0700h + ' ', 0700h + 'o', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " o = $"
+                    dw ' ', '$'
 
                     dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "es = $"
-                    dw '     %'                                                                   ; "     %"
+                    dw 6 dup(32), '%'                                                        ; "      %"
+                    dw ' ', '$'
 
                     dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; "ss = $"
-                    dw '     %'                                                                   ; "     %"
+                    dw 6 dup(32), '%'                                                        ; "      %"
+                    dw ' ', '$'
 
 ;------------------------------------------------------------------------------------------------------------------
 
