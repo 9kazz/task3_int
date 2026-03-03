@@ -188,8 +188,6 @@ New_int             proc
 
 
     @@end_of_printing: 
-                    mov ax, 0b800h
-                    mov es, ax                  ; es -> VM
                     CALL Dump_Draw_buf
 
                     POP ax bx cx dx si di bp sp ds es ss        ; recover regs
@@ -334,25 +332,33 @@ Repack_flag_reg     proc
 ; Exp:      es -> VM
 ;           ds -> data seg (equal code seg in model tiny)
 ; Destr:    --
-; Save:     ax, bx, si, di, cx
+; Save:     ax, bx, si, di, cx, dx
 ;------------------------------------------------------------------------------------------------------------------
 
 Draw_buf_cmp_VM     proc
-                    PUSH ax bx si di cx
+                    PUSH ax bx si di cx dx
 
                     mov bx, offset Save_buf             ; bx -> start of the Save_buf
                     mov si, offset Draw_buf             ; si -> start of the Draw_buf
-                    xor di, di                          ; di -> start of the VM
+                    mov di, Frame_offset_VM             ; di -> start printing position of the VM
 
-                    mov cx, Frame_size
+                    mov dx, Frame_wid                   ; dx = count of the lines to check
 
-    @@cmp_one_char: lodsw                               ; ax = char from Draw_buf
+    @@check_one_line:
+                    mov cx, Frame_len                   ; cx = count of the chars to check in one line 
+        @@cmp_one_char: 
+                    lodsw                               ; ax = char from Draw_buf
                     scasw                               ; cmp ax with appropriate char from VM
                     jne @@copy_char
-    @@continue:     add bx, 2                           ; next char in the Save_buf
+        @@continue: add bx, 2                           ; next char in the Save_buf
                     loop @@cmp_one_char
 
-                    POP cx di si bx ax
+    @@new_line:     add di, New_line_remain
+                    dec dx
+                    test dx, dx
+                    jnz @@check_one_line
+
+                    POP dx cx di si bx ax
                     ret
 
     @@copy_char:    mov ax, es:[di - 2]     ; ax = char from VM. di-2 because scasb increased di before.
