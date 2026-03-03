@@ -87,14 +87,29 @@ New_int             proc
 
                     mov di, offset Draw_buf     ; di -> Draw_buf
                     add di, (5 * 80 + 40) * 2        
+                    PUSH di
 
                     CALL Repack_flag_reg        ; bx = repacked flag-reg
                     mov si, offset Prefix_arr   ; si -> Prefix_arr
 
-                    mov cx, 11                  ; count of printing regs
+;                           === UPPER FRAME SIDE ===
+    @@print_frame_uside:
+                    lodsw
+                    cmp ax, '$'                     ; '$' means end of line
+                        je  @@cycle_init
+                    stosw
+                    jmp @@print_frame_uside
+
+;                           === MAIN CYCLE: FILLING ONE LINE ===
+
+    @@cycle_init:   POP di
+                    add di, 80 * 2                  ; new line
+                    mov cx, 11                      ; count of printing regs
+
     @@print_one_line:
                     PUSH di                         ; save start of cur line
-;-------------------------------- PRINT REGISTERS -------------------------------------------
+
+;                           === PRINT REGISTERS & LEFT FRAME SIDE ===
         @@print_reg_prefix:
                     lodsw
                     cmp ax, '$'                     ; '$' means end of reg-prefix
@@ -106,7 +121,7 @@ New_int             proc
                     mov dx, [bp]
                     CALL Itoa
 
-;-------------------------------- PRINT FLAGS ------------------------------------------------
+;                           === PRINT FLAGS ===
         @@print_flag_prefix:
                     lodsw
                     cmp ax, '$'                     ; '$' means end of flag-prefix
@@ -125,7 +140,7 @@ New_int             proc
 
                     shr bx, 1
 
-;-------------------------------- PRINT STACK ------------------------------------------------
+;                           === PRINT STACK ===
         @@print_stk_prefix:
                     lodsw
                     cmp ax, '$'                     ; '$' means end of stack-prefix
@@ -142,14 +157,13 @@ New_int             proc
                     CALL Itoa
                     POP bx
 
-;-------------------------------- PRINT FRAME RIGHT SIDE -------------------------------------
-                @@print_frame_rside:
+;                           === PRINT FRAME RIGHT SIDE ===
+        @@print_frame_rside:
                     lodsw
                     cmp ax, '$'                     ; '$' means end of line
                         je  @@end_of_cycle
                     stosw
                     jmp @@print_frame_rside
-
 
     @@end_of_cycle: POP di
                     add di, 80 * 2              ; new line
@@ -157,6 +171,16 @@ New_int             proc
                     
                     loop @@print_one_line
 
+;                           === LOWER FRAME SIDE ===
+    @@print_frame_lside:
+                    lodsw
+                    cmp ax, '$'                 ; '$' means end of line
+                        je  @@end_of_printing
+                    stosw
+                    jmp @@print_frame_lside
+
+
+    @@end_of_printing: 
                     PUSH 0b800h
                     POP es                      ; es -> VM
                     CALL Dump_Draw_buf
@@ -294,11 +318,13 @@ Draw_buf_Len        = 80 * 25 * 2
 Stack_buf           dw 11 dup(0)
 
 ; Prefixes to print flags ('%' means new line, '$' means end of prefix)              
-Prefix_arr          dw 0700h + 0bah, 0700h + ' '
+Prefix_arr          dw 0700h + 0c9h, 26 dup(0700h + 0cdh), 0700h + 0bbh, '$'                                            ; upper frame side
+
+                    dw 0700h + 0bah, 0700h + ' '                                                                        ; left frame side
                     dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "ax = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'c', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | c = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw 0700h + ' ', 0700h + 0bah, '$'                                                                   ; right frame side
 
                     dw 0700h + 0bah, 0700h + ' '
                     dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "bx = $"
@@ -359,6 +385,8 @@ Prefix_arr          dw 0700h + 0bah, 0700h + ' '
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 5 dup(32), '%'                                           ; " |      %"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
                     dw 0700h + ' ', 0700h + 0bah, '$'
+
+                    dw 0700h + 0c8h, 26 dup(0700h + 0cdh), 0700h + 0bch, '$'                                            ; lower frame side
 ;------------------------------------------------------------------------------------------------------------------
 
 End_of_prog:                                    ; is used to define size of all program code
