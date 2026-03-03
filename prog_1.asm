@@ -5,54 +5,43 @@ locals @@
 .code
 org 100h
 
-;                   MACROSES & DEFINES
 ;==================================================================================================================
 
-;                   PRINT_STR
-;------------------------------------------------------------------------------------------------------------------
-; Descr:    store string to es:[di] memmory addres
-; Entry:    str_adr == storing string addres
-;           str_len == storing string length
-; Exit:     si -> data after storing string
-; Exp:      es:[ds] -> wanted memmory location to store the string
-; Destr:    ax, cx | si
-; Save:     --
-;------------------------------------------------------------------------------------------------------------------
-
-PRINT_STR           macro str_adr, str_len
-                    mov si, str_adr
-                    mov cx, str_len
-                    @@print_one_char:
-                        lodsw
-                        stosw
-                        loop @@print_one_char
-                    endm
-
-;==================================================================================================================
-
-Start:              mov ax, 3509h               ; find out adr of int handler
+Start:              mov ax, 3509h                   ; find out adr of int 09h handler
                     int 21h
                     mov Old_09_ofs, bx
                     mov bx, es
                     mov Old_09_seg, bx
 
-                    push 0
-                    pop es                      ; es -> int table
-                    cli                         ; int flag = 0
-                    mov bx, 09h * 4             ; 4 is size of elem in int table
-                    mov es:[bx], offset New_int ; adr = New_int (in int table)
-                    mov ax, cs                  ; ax -> code seg
-                    mov es:[bx + 2], ax         ; seg = cs (in int table)
-                    sti                         ; int flag = 1
+                    mov ax, 3508h                   ; find out adr of int 09h handler
+                    int 21h
+                    mov Old_08_ofs, bx
+                    mov bx, es
+                    mov Old_08_seg, bx
 
-                    mov ax, 3100h               ; int 21h: fn resident ending
-                    mov dx, offset End_of_prog  ; dx = size of all program code (in bytes)
-                    shr dx, 4                   ; ...(in paragraphs)
-                    inc dx                      ; division remainder
+                    push 0
+                    pop es                          ; es -> int table
+
+                    cli                             ; int flag = 0
+                    mov bx, 08h * 4                 ; 4 is size of elem in int table
+                    mov es:[bx], offset New_int08   ; adr = New_int08 (in int table)
+                    mov ax, cs                      ; ax -> code seg
+                    mov es:[bx + 2], ax             ; seg = cs (in int table)
+
+                    mov bx, 09h * 4                
+                    mov es:[bx], offset New_int09   
+                                        ; mov ax, cs                      ; ax -> code seg
+                    mov es:[bx + 2], ax            
+                    sti                             ; int flag = 1
+
+                    mov ax, 3100h                   ; int 21h: fn resident ending
+                    mov dx, offset End_of_prog      ; dx = size of all program code (in bytes)
+                    shr dx, 4                       ; ...(in paragraphs)
+                    inc dx                          ; division remainder
                     int 21h
 
 
-;                   NEW_INT
+;                   NEW_INT09
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:    this code block replaces original 09h interrapt. Prints all registers and flags into VM 
 ;           by pressing "1" on keyboard
@@ -63,15 +52,24 @@ Start:              mov ax, 3509h               ; find out adr of int handler
 ; Save:     ax, bx, cx, dx, es
 ;------------------------------------------------------------------------------------------------------------------
 
-New_int             proc
+New_int09           proc
                     PUSH ax
 
-                    in al, 60h                  ; al = scan-code        
-                    cmp al, 2                   ; scan-code to trigger regs dump
+                    in al, 60h                  ; al = scan-code 
+
+                    cmp al, 3                   ; scan-code to print Save_buf
+                    jne @@check_draw_buf
+                    CALL Dump_Save_buf
+                    jmp @@end_of_int
+
+    @@check_draw_buf:   
+                    cmp al, 2                   ; scan-code to print Draw_buf
                     jne @@end_of_int
 
                     PUSHF
                     PUSH ss es ds sp bp di si dx cx bx ax   ; save regs
+
+                    CALL VM_copy_to_Save_buf
 
                     mov ax, cs
                     mov ds, ax                  
@@ -211,6 +209,40 @@ New_int             proc
                     iret                        ; return from jmp far
                     endp
 
+;                   NEW_INT08
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    this code block replaces original 09h interrapt. Prints all registers and flags into VM 
+;           by pressing "1" on keyboard
+; Entry:    --
+; Exit:     --
+; Exp:      --
+; Destr:    --
+; Save:     ax, bx, cx, dx, es
+;------------------------------------------------------------------------------------------------------------------
+
+New_int08           proc
+                    PUSHF
+                    PUSH ss es ds sp bp di si dx cx bx ax       ; save regs
+
+                    mov ax, 0b800h
+                    mov es, ax
+                    mov ax, cs
+                    mov ds, ax
+                    CALL Draw_buf_cmp_VM
+
+                    mov al, 20H                 ; send End-Of-Interrupt signal
+                    out 20H, al                 ; to the 8259 Interrupt Controller
+
+                    POP ax bx cx dx si di bp sp ds es ss        ; recover regs
+                    POPF
+
+                    db 0eah                     ; jmp far to old int 08
+                    Old_08_ofs dw 0
+                    Old_08_seg dw 0
+
+                    iret                        ; return from jmp far
+                    endp
+
 ;                   ITOA
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:    convert register value into string uncludes hex digits and save it in the di-addres
@@ -250,7 +282,7 @@ Itoa                proc
 
 ;                   DUMP_DRAW_BUF
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    print data from Print_buf into VM
+; Descr:    print data from Draw_buf into VM
 ; Entry:    --
 ; Exit:     --
 ; Exp:      --
@@ -284,6 +316,48 @@ Dump_Draw_buf       proc
                     jnz @@print_one_line
 
                     POP bx es di si cx
+                    ret
+
+                    endp
+
+;                   DUMP_SAVE_BUF
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    print data from Save_buf into VM
+; Entry:    --
+; Exit:     --
+; Exp:      ds -> code seg 
+; Destr:    ax
+; Save:     cx, si, di, es, bx, ds
+;------------------------------------------------------------------------------------------------------------------
+
+Dump_Save_buf       proc
+
+                    PUSH cx si di es bx ds
+
+                    mov ax, 0b800h
+                    mov es, ax                  ; es -> VM
+                    mov ax, cs
+                    mov ds, ax                  ; ds -> code seg
+
+                    mov si, offset Save_buf     ; si -> start of Save_buf
+                    mov di, Frame_offset_VM     ; di -> start position in VM
+                    
+                    mov bx, Frame_wid           ; bx = count of lines to print
+                    
+    @@print_one_line:                    
+                    mov cx, Frame_len           ; cx = count of chars in one line
+
+        @@print_one_char:
+                    lodsw 
+                    stosw
+                    loop @@print_one_char
+
+    @@new_line:     add di, New_line_remain
+                    dec bx
+                    test bx, bx
+                    jnz @@print_one_line
+
+                    POP ds bx es di si cx
                     ret
 
                     endp
@@ -363,7 +437,7 @@ Draw_buf_cmp_VM     proc
 
     @@copy_char:    mov ax, es:[di - 2]     ; ax = char from VM. di-2 because scasb increased di before.
                     mov ds:[si - 2], ax     ; VM ds:[si] -> Draw_buf es:[di]
-                    mov es:[bx], ax         ; VM ds:[si] -> Save_buf es:[bx]
+                    mov ds:[bx], ax         ; VM ds:[si] -> Save_buf es:[bx]
                     jmp @@continue
 
                     endp
@@ -375,17 +449,16 @@ Draw_buf_cmp_VM     proc
 ; Exit:     --
 ; Exp:      --
 ; Destr:    --
-; Save:     ax, bx, si, di, cx, dx
+; Save:     ax, bx, si, di, cx, dx, ds
 ;------------------------------------------------------------------------------------------------------------------
 
 VM_copy_to_Save_buf proc
-                    PUSH cx si di es bx ax
+                    PUSH cx si di es bx ax ds
 
                     mov ax, 0b800h
                     mov ds, ax                  ; ds -> VM
                     mov ax, cs
-                    mov es, cs                  ; es -> code deg
-
+                    mov es, ax                  ; es -> code seg
 
                     mov di, offset Save_buf     ; di -> start of Save_buf
                     mov si, Frame_offset_VM     ; si -> start position in VM
@@ -405,7 +478,7 @@ VM_copy_to_Save_buf proc
                     test bx, bx
                     jnz @@copy_one_line
 
-                    POP ax bx es di si cx
+                    POP ds ax bx es di si cx
                     ret
 
                     endp
