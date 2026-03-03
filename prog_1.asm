@@ -86,18 +86,25 @@ New_int             proc
                     loop @@save_stack
 
                     mov di, offset Draw_buf     ; di -> Draw_buf
-                    add di, (5 * 80 + 40) * 2        
+                    add di, (5 * 80 + 25) * 2        
                     PUSH di
 
                     CALL Repack_flag_reg        ; bx = repacked flag-reg
-                    mov si, offset Prefix_arr   ; si -> Prefix_arr
+                    mov si, offset Frame_arr    ; si -> Frame_arr 
 
 ;                           === UPPER FRAME SIDE ===
     @@print_frame_uside:
                     lodsw
                     cmp ax, '$'                     ; '$' means end of line
                         je  @@cycle_init
+                    cmp ax, '%'
+                        je @@new_line 
                     stosw
+                    jmp @@print_frame_uside
+
+    @@new_line:     POP di
+                    add di, 80 * 2                  ; new line
+                    PUSH di
                     jmp @@print_frame_uside
 
 ;                           === MAIN CYCLE: FILLING ONE LINE ===
@@ -135,7 +142,7 @@ New_int             proc
                     mov al, bl
                     and al, 1                   ; al = cur flag value
                     add al, 48
-                    mov ah, 70h                 ; ah = attribute
+                    mov ah, TEXT_ATR            ; ah = attribute
                     stosw                       
 
                     shr bx, 1
@@ -220,7 +227,7 @@ New_int             proc
 Itoa                proc
                     PUSH cx
 
-                    mov ah, 070h                ; attribute
+                    mov ah, TEXT_ATR            ; attribute
                     mov cx, 4
 
     @@get_one_sign: mov al, dh                  ; get 4 highest bytes in temp reg
@@ -317,76 +324,82 @@ Draw_buf_Len        = 80 * 25 * 2
 
 Stack_buf           dw 11 dup(0)
 
-; Prefixes to print flags ('%' means new line, '$' means end of prefix)              
-Prefix_arr          dw 0700h + 0c9h, 26 dup(0700h + 0cdh), 0700h + 0bbh, '$'                                            ; upper frame side
+; Prefixes to print flags ('%' means new line, '$' means end of text-block)
+TEXT_ATR            = 70h
+FRAME_ATR           = 7000h
+Frame_arr           dw 9 dup(FRAME_ATR + ' '), FRAME_ATR + 'I', FRAME_ATR + 'N', FRAME_ATR + 'F', FRAME_ATR + 'O', FRAME_ATR + 'R', FRAME_ATR + 'M', FRAME_ATR + 'A', FRAME_ATR + 'T', FRAME_ATR + 'I', FRAME_ATR + 'O', FRAME_ATR + 'N', 9 dup(FRAME_ATR + ' '), '%'    ; "         INFORMATION         %"
+                    dw FRAME_ATR + 0c9h, 27 dup(FRAME_ATR + 0cdh), FRAME_ATR + 0bbh, '%'                                                            ; upper frame side
+                    dw FRAME_ATR + 0bah, 4 dup(FRAME_ATR + ' '), FRAME_ATR + 'R', FRAME_ATR + 'E', FRAME_ATR + 'G', FRAME_ATR + 'S', 3 dup(FRAME_ATR + ' '), FRAME_ATR + 0b3h, 1 dup(FRAME_ATR + ' '), FRAME_ATR + 'F', FRAME_ATR + 'L', FRAME_ATR + 'A', FRAME_ATR + 'G', FRAME_ATR + 'S', 1 dup(FRAME_ATR + ' '), FRAME_ATR + 0b3h, 1 dup(FRAME_ATR + ' '), FRAME_ATR + 'S', FRAME_ATR + 'T', FRAME_ATR + 'A', FRAME_ATR + 'C' , FRAME_ATR + 'K', 1 dup (FRAME_ATR + ' '), FRAME_ATR + 0bah, '%'
+                    ; "|   REGS   FLAGS   STACK   |"
+                    dw FRAME_ATR + 0bah, 27 dup(FRAME_ATR + 0c4h), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '                                                                        ; left frame side
-                    dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "ax = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'c', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | c = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'                                                                   ; right frame side
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '                                                                                            ; left frame side
+                    dw FRAME_ATR + 'a', FRAME_ATR + 'x',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ax = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'c', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | c = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw FRAME_ATR + '<', FRAME_ATR + 0c4h, FRAME_ATR + 0bah, '$'                                                                                       ; right frame side
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "bx = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | p = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'b', FRAME_ATR + 'x',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "bx = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'p', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | p = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "cx = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'a', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | a = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'c', FRAME_ATR + 'x',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "cx = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'a', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | a = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "dx = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'z', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | z = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'd', FRAME_ATR + 'x',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "dx = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'z', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | z = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "si = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | s = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 's', FRAME_ATR + 'i',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "si = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 's', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | s = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 'd', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "di = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 't', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | t = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'd', FRAME_ATR + 'i',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "di = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 't', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | t = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "bp = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | i = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'b', FRAME_ATR + 'p',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "bp = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'i', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | i = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "sp = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'd', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | d = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 's', FRAME_ATR + 'p',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "sp = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'd', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | d = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "ds = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'o', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | o = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'd', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ds = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'o', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | o = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "es = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 5 dup(32), '%'                                           ; " |      %"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'e', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "es = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', 5 dup(FRAME_ATR + ' '), '%'                                              ; " |      %"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0bah, 0700h + ' '
-                    dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "ss = $"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 5 dup(32), '%'                                           ; " |      %"
-                    dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
-                    dw 0700h + ' ', 0700h + 0bah, '$'
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 's', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ss = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', 5 dup(FRAME_ATR + ' '), '%'                                              ; " |      %"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
-                    dw 0700h + 0c8h, 26 dup(0700h + 0cdh), 0700h + 0bch, '$'                                            ; lower frame side
+                    dw FRAME_ATR + 0c8h, 27 dup(FRAME_ATR + 0cdh), FRAME_ATR + 0bch, '$'                                                            ; lower frame side
 ;------------------------------------------------------------------------------------------------------------------
 
 End_of_prog:                                    ; is used to define size of all program code
