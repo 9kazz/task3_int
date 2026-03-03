@@ -73,8 +73,9 @@ New_int             proc
                     PUSHF
                     PUSH ss es ds sp bp di si dx cx bx ax   ; save regs
 
-                    PUSH cs cs
-                    POP ds es
+                    mov ax, cs
+                    mov ds, ax                  
+                    mov es, ax                  ; ds, es -> code seg
 
                     mov cx, 11                  ; count of printing regs
                     mov bp, sp                  ; bp -> head of the stack
