@@ -55,7 +55,7 @@ Start:              mov ax, 3509h               ; find out adr of int handler
 ;                   NEW_INT
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:    this code block replaces original 09h interrapt. Prints all registers and flags into VM 
-;           by pressing "r" on keyboard
+;           by pressing "1" on keyboard
 ; Entry:    --
 ; Exit:     --
 ; Exp:      --
@@ -77,7 +77,7 @@ New_int             proc
                     mov ds, ax                  
                     mov es, ax                  ; ds, es -> code seg
 
-                    mov cx, 11                  ; count of printing regs
+                    mov cx, Count_of_regs       ; count of printing regs
                     mov bp, sp                  ; bp -> head of the stack
                     mov di, offset Stack_buf 
 
@@ -87,7 +87,6 @@ New_int             proc
                     loop @@save_stack
 
                     mov di, offset Draw_buf     ; di -> Draw_buf
-                    add di, (5 * 80 + 25) * 2        
                     PUSH di
 
                     CALL Repack_flag_reg        ; bx = repacked flag-reg
@@ -104,15 +103,15 @@ New_int             proc
                     jmp @@print_frame_uside
 
     @@new_line:     POP di
-                    add di, 80 * 2                  ; new line
+                    add di, Frame_len * 2           ; new line
                     PUSH di
                     jmp @@print_frame_uside
 
 ;                           === MAIN CYCLE: FILLING ONE LINE ===
 
     @@cycle_init:   POP di
-                    add di, 80 * 2                  ; new line
-                    mov cx, 11                      ; count of printing regs
+                    add di, Frame_len * 2           ; new line
+                    mov cx, Count_of_regs           ; count of printing regs
 
     @@print_one_line:
                     PUSH di                         ; save start of cur line
@@ -142,7 +141,7 @@ New_int             proc
         @@print_flag_value:
                     mov al, bl
                     and al, 1                   ; al = cur flag value
-                    add al, 48
+                    add al, 48                  ; 48 is ASCII "0"
                     mov ah, TEXT_ATR            ; ah = attribute
                     stosw                       
 
@@ -158,7 +157,7 @@ New_int             proc
 
         @@print_stk_value:
                     PUSH bx              
-                    mov bx, 11   
+                    mov bx, Count_of_regs   
                     sub bx, cx
                     shl bx, 1
                     mov dx, [Stack_buf + bx]
@@ -174,7 +173,7 @@ New_int             proc
                     jmp @@print_frame_rside
 
     @@end_of_cycle: POP di
-                    add di, 80 * 2              ; new line
+                    add di, Frame_len * 2       ; new line
                     add bp, 2                   ; next reg
                     
                     loop @@print_one_line
@@ -189,8 +188,8 @@ New_int             proc
 
 
     @@end_of_printing: 
-                    PUSH 0b800h
-                    POP es                      ; es -> VM
+                    mov ax, 0b800h
+                    mov es, ax                  ; es -> VM
                     CALL Dump_Draw_buf
 
                     POP ax bx cx dx si di bp sp ds es ss        ; recover regs
@@ -256,26 +255,37 @@ Itoa                proc
 ; Descr:    print data from Print_buf into VM
 ; Entry:    --
 ; Exit:     --
-; Exp:      es -> VM
+; Exp:      --
 ; Destr:    ax
-; Save:     cx, si, di
+; Save:     cx, si, di, es, bx
 ;------------------------------------------------------------------------------------------------------------------
 
 Dump_Draw_buf       proc
 
-                    PUSH cx si di
+                    PUSH cx si di es bx
 
-                    mov cx, VM_size
+                    mov ax, 0b800h
+                    mov es, ax                  ; es -> VM
 
-                    mov si, offset Draw_buf    ; si -> start of Print_buf
-                    xor di, di                 ; di -> start of VM
+                    mov si, offset Draw_buf     ; si -> start of Print_buf
+                    mov di, Frame_offset_VM     ; di -> start position in VM
                     
-    @@print_one_char:
+                    mov bx, Frame_wid           ; bx = count of lines to print
+                    
+    @@print_one_line:                    
+                    mov cx, Frame_len           ; cx = count of chars in one line
+
+        @@print_one_char:
                     lodsw 
                     stosw
                     loop @@print_one_char
 
-                    POP di si cx
+    @@new_line:     add di, New_line_remain
+                    dec bx
+                    test bx, bx
+                    jnz @@print_one_line
+
+                    POP bx es di si cx
                     ret
 
                     endp
@@ -295,7 +305,7 @@ Dump_Draw_buf       proc
 Repack_flag_reg     proc
 
                     PUSHF 
-                    POP bx                      ; bx = flag-reg
+                    POP bx           ; bx = flag-reg
 
                     or ah, 1
                     and ah, bl
@@ -328,13 +338,13 @@ Repack_flag_reg     proc
 ;------------------------------------------------------------------------------------------------------------------
 
 Draw_buf_cmp_VM     proc
-                    PUSH ax, bx, si, di, cx
+                    PUSH ax bx si di cx
 
                     mov bx, offset Save_buf             ; bx -> start of the Save_buf
                     mov si, offset Draw_buf             ; si -> start of the Draw_buf
                     xor di, di                          ; di -> start of the VM
 
-                    mov cx, VM_size
+                    mov cx, Frame_size
 
     @@cmp_one_char: lodsw                               ; ax = char from Draw_buf
                     scasw                               ; cmp ax with appropriate char from VM
@@ -342,7 +352,7 @@ Draw_buf_cmp_VM     proc
     @@continue:     add bx, 2                           ; next char in the Save_buf
                     loop @@cmp_one_char
 
-                    POP cx, di, si, bx, ax
+                    POP cx di si bx ax
                     ret
 
     @@copy_char:    mov ax, es:[di - 2]     ; ax = char from VM. di-2 because scasb increased di before.
@@ -355,10 +365,15 @@ Draw_buf_cmp_VM     proc
 ;                   INIT_DATA
 ;==================================================================================================================
 
-; Buffers
-VM_size              = 80 * 25 * 2
-Draw_buf            db VM_size dup (0)
-Save_buf            db VM_size dup (0)
+; Buffers & constants
+Count_of_regs       = 11
+Frame_wid           = 16
+Frame_len           = 29
+Frame_size          = Frame_len * Frame_wid * 2
+Frame_offset_VM     = (26 + 4 * 80) * 2
+New_line_remain     = (80 - 29) * 2
+Draw_buf            db Frame_size dup (0)
+Save_buf            db Frame_size dup (0)
 
 Stack_buf           dw 11 dup(0)
 
