@@ -265,7 +265,7 @@ Dump_Draw_buf       proc
 
                     PUSH cx si di
 
-                    mov cx, Draw_buf_Len
+                    mov cx, VM_size
 
                     mov si, offset Draw_buf    ; si -> start of Print_buf
                     xor di, di                 ; di -> start of VM
@@ -315,13 +315,50 @@ Repack_flag_reg     proc
                     ret
                     endp
 
+;                   DRAW_BUF_CMP_VM
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    compare characters (with their`s attributes) from VM with appropriate characters from Draw_buf
+;           and if they aren`t same, change current character in Draw_buf and Save_buf to another one from VM
+; Entry:    --
+; Exit:     --
+; Exp:      es -> VM
+;           ds -> data seg (equal code seg in model tiny)
+; Destr:    --
+; Save:     ax, bx, si, di, cx
+;------------------------------------------------------------------------------------------------------------------
+
+Draw_buf_cmp_VM     proc
+                    PUSH ax, bx, si, di, cx
+
+                    mov bx, offset Save_buf             ; bx -> start of the Save_buf
+                    mov si, offset Draw_buf             ; si -> start of the Draw_buf
+                    xor di, di                          ; di -> start of the VM
+
+                    mov cx, VM_size
+
+    @@cmp_one_char: lodsw                               ; ax = char from Draw_buf
+                    scasw                               ; cmp ax with appropriate char from VM
+                    jne @@copy_char
+    @@continue:     add bx, 2                           ; next char in the Save_buf
+                    loop @@cmp_one_char
+
+                    POP cx, di, si, bx, ax
+                    ret
+
+    @@copy_char:    mov ax, es:[di - 2]     ; ax = char from VM. di-2 because scasb increased di before.
+                    mov ds:[si - 2], ax     ; VM ds:[si] -> Draw_buf es:[di]
+                    mov es:[bx], ax         ; VM ds:[si] -> Save_buf es:[bx]
+                    jmp @@continue
+
+                    endp
 
 ;                   INIT_DATA
 ;==================================================================================================================
 
 ; Buffers
-Draw_buf            db 80 * 25 * 2 dup (0)
-Draw_buf_Len        = 80 * 25 * 2
+VM_size              = 80 * 25 * 2
+Draw_buf            db VM_size dup (0)
+Save_buf            db VM_size dup (0)
 
 Stack_buf           dw 11 dup(0)
 
