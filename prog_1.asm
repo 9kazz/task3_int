@@ -88,15 +88,12 @@ New_int             proc
                     mov di, offset Draw_buf     ; di -> Draw_buf
                     add di, (5 * 80 + 40) * 2        
 
-                    PUSHF 
-                    POP bx                      ; bx = flag-reg
                     CALL Repack_flag_reg        ; bx = repacked flag-reg
                     mov si, offset Prefix_arr   ; si -> Prefix_arr
 
                     mov cx, 11                  ; count of printing regs
     @@print_one_line:
                     PUSH di                         ; save start of cur line
-
 ;-------------------------------- PRINT REGISTERS -------------------------------------------
         @@print_reg_prefix:
                     lodsw
@@ -131,7 +128,7 @@ New_int             proc
 ;-------------------------------- PRINT STACK ------------------------------------------------
         @@print_stk_prefix:
                     lodsw
-                    cmp ax, '$'                     ; '$' means end of reg-prefix
+                    cmp ax, '$'                     ; '$' means end of stack-prefix
                         je  @@print_stk_value
                     stosw
                     jmp @@print_stk_prefix
@@ -144,6 +141,15 @@ New_int             proc
                     mov dx, [Stack_buf + bx]
                     CALL Itoa
                     POP bx
+
+;-------------------------------- PRINT FRAME RIGHT SIDE -------------------------------------
+                @@print_frame_rside:
+                    lodsw
+                    cmp ax, '$'                     ; '$' means end of line
+                        je  @@end_of_cycle
+                    stosw
+                    jmp @@print_frame_rside
+
 
     @@end_of_cycle: POP di
                     add di, 80 * 2              ; new line
@@ -256,6 +262,9 @@ Dump_Draw_buf       proc
 
 Repack_flag_reg     proc
 
+                    PUSHF 
+                    POP bx                      ; bx = flag-reg
+
                     or ah, 1
                     and ah, bl
                     and ah, 1        ; ah = 0...0c (not hex num -- it`s flag configuration in the flag-register)
@@ -285,49 +294,71 @@ Draw_buf_Len        = 80 * 25 * 2
 Stack_buf           dw 11 dup(0)
 
 ; Prefixes to print flags ('%' means new line, '$' means end of prefix)              
-Prefix_arr          dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "ax = $"
+Prefix_arr          dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 'a', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "ax = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'c', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | c = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ;  "bx = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 'b', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "bx = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | p = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "cx = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 'c', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "cx = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'a', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | a = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "dx = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 'd', 0700h + 'x', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "dx = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'z', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | z = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "si = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 's', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "si = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | s = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
+                    dw 0700h + 0bah, 0700h + ' '
                     dw 0700h + 'd', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "di = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 't', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | t = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "bp = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 'b', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "bp = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'i', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | i = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "sp = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 's', 0700h + 'p', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "sp = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'd', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | d = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "ds = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 'd', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "ds = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 0700h + 'o', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'  ; " | o = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "es = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 'e', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "es = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 5 dup(32), '%'                                           ; " |      %"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 
-                    dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                            ; "ss = $"
+                    dw 0700h + 0bah, 0700h + ' '
+                    dw 0700h + 's', 0700h + 's', 0700h + ' ', 0700h + '=', 0700h + ' ', '$'                             ; "ss = $"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', 5 dup(32), '%'                                           ; " |      %"
                     dw 0700h + ' ', 0700h + 0b3h, 0700h + ' ', '$'                                                      ; " | $"
+                    dw 0700h + ' ', 0700h + 0bah, '$'
 ;------------------------------------------------------------------------------------------------------------------
 
 End_of_prog:                                    ; is used to define size of all program code
