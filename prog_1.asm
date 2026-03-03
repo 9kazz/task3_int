@@ -368,6 +368,48 @@ Draw_buf_cmp_VM     proc
 
                     endp
 
+;                   DRAW_BUF_CMP_VM
+;------------------------------------------------------------------------------------------------------------------
+; Descr:    copy screen area under the frame from VM to Save_buf.
+; Entry:    --
+; Exit:     --
+; Exp:      --
+; Destr:    --
+; Save:     ax, bx, si, di, cx, dx
+;------------------------------------------------------------------------------------------------------------------
+
+VM_copy_to_Save_buf proc
+                    PUSH cx si di es bx ax
+
+                    mov ax, 0b800h
+                    mov ds, ax                  ; ds -> VM
+                    mov ax, cs
+                    mov es, cs                  ; es -> code deg
+
+
+                    mov di, offset Save_buf     ; di -> start of Save_buf
+                    mov si, Frame_offset_VM     ; si -> start position in VM
+                    
+                    mov bx, Frame_wid           ; bx = count of lines to print
+                    
+    @@copy_one_line:                    
+                    mov cx, Frame_len           ; cx = count of chars in one line
+
+        @@copy_one_char:
+                    lodsw 
+                    stosw
+                    loop @@copy_one_char
+
+    @@new_line:     add si, New_line_remain
+                    dec bx
+                    test bx, bx
+                    jnz @@copy_one_line
+
+                    POP ax bx es di si cx
+                    ret
+
+                    endp
+
 ;                   INIT_DATA
 ;==================================================================================================================
 
