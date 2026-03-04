@@ -1,12 +1,11 @@
-
 ;                   ITOA
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    convert register value into string uncludes hex digits and save it in the di-addres
+; Descr:    convert register value into string consisting hex digits and save it in the di-addres
 ; Entry:    dx == value to convert
 ;           di -> memmory to save string
 ; Exit:     di += 4 (count of hex digit)
 ; Exp:      --
-; Destr:    ax, dx | di
+; Destr:    ax, dx | Change: di
 ; Save:     cx
 ;------------------------------------------------------------------------------------------------------------------
 
@@ -23,7 +22,7 @@ Itoa                proc
                     cmp al, 9
                     ja @@trans2letter
 
-    @@trans2digit:  add al, 48                  ; al = ASCII digit
+    @@trans2digit:  add al, '0'                  ; al = ASCII digit
     @@fill_buf:     stosw                       ; store ASKII in buffer
 
                     loop @@get_one_sign
@@ -31,18 +30,18 @@ Itoa                proc
                     POP cx
                     ret
 
-    @@trans2letter: add al, 55
+    @@trans2letter: add al, 'A' - 10
                     jmp @@fill_buf              ; al = ASKII letter
 
                     endp
 
 ;                   REPACK_FLAG_REG
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    repack flag-register`s flags into bx in order c-p-a-z-s-t-i-d-o to convenient handle.
+; Descr:    repack flag-register`s into bx in order c-p-a-z-s-t-i-d-o. It necessary to more convenient handle.
 ; Entry:    bx == flag-register
 ; Exit:     bx == repacked flag-register
 ; Exp:      --
-; Destr:    ax | bx
+; Destr:    ax | Change: bx
 ; Note:     originaly in flag-register flags are located in appropriate order:
 ;           c(0), p(2), a(4), z(6), s(7), t(8), i(9), d(10), o(11) 
 ;           * numder of the register`s bit in the bracket    

@@ -42,17 +42,44 @@ Start:              mov ax, 3509h                   ; find out adr of int 09h ha
 
 ;                   NEW_INT09
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    this code block replaces original 09h interrapt. Prints all registers and flags into VM 
-;           by pressing "1" on keyboard
+; Descr:    this procedure replaces original 09h interrapt. When triggered, prints the frame contains information about
+;           current value fo the some registers (11), flags (9) and elements from the top of the stack (11) into VM. 
+;           Current screen condition under the frame refresh by timer-tick (int 08h (New_int08)), therefore 
+;           image under the frame always sustains actual.
+;           By pressing "ctrl + 1" on keyboard frame appears.
+;           By pressing "ctrl + 2" on keyboard frame disappears, and VM backs to the actual condition accept frame. 
 ; Entry:    --
 ; Exit:     --
-; Exp:      --
+; Exp:      Old INT 09h vector must be saved in Old_09_seg and Old_09_ofs
 ; Destr:    --
-; Save:     ax, bx, cx, dx, es
+; Save:     ax, bx, cx, dx, si, di, bp, ds, es, ss, sp + FLAGS
+; Notes:  - Uses Draw_buf as temporary buffer, then flips to VM
+;         - Uses Save_buf to store and refresh actual screen condition under the frame
+;
+; Frame exp:
+;                     INFORMATION         
+;            ╔═══════════════════════════╗
+;            ║    REGS   | FLAGS | STACK ║
+;            ║---------------------------║
+;            ║ ax = 000A | c = 1 | 0001<-║
+;            ║ bx = 0230 | p = 0 | 0002  ║
+;            ║ cx = FF01 | a = 0 | 1300  ║
+;            ║ dx = 1000 | z = 1 | 00D1  ║
+;            ║ si = 0021 | s = 1 | 0000  ║
+;            ║ di = 0D10 | t = 0 | 34F0  ║
+;            ║ bp = DF78 | i = 0 | FFFF  ║
+;            ║ sp = DAA0 | d = 1 | 0000  ║
+;            ║ ds = 89AF | o = 0 | 0000  ║
+;            ║ es = B800 |       | DAA1  ║
+;            ║ ss = 0100 |       | 97F0  ║
+;            ╚═══════════════════════════╝
+;
 ;------------------------------------------------------------------------------------------------------------------
 
 New_int09           proc
                     PUSH ax
+
+;                           === CHECK SCAN-CODE & PICK UP APPROPRIATE OPTION ===
 
                     mov ah, 02h                 
                     int 16h                     ; al = shift status information
@@ -72,8 +99,8 @@ New_int09           proc
                     cmp al, 2                   ; scan-code to print Draw_buf
                     jne @@end_of_int
 
+                    PUSH sp ss es ds bp di si dx cx bx ax   ; save regs
                     PUSHF
-                    PUSH ss es ds sp bp di si dx cx bx ax   ; save regs
 
                     CALL VM_copy_to_Save_buf
 
@@ -145,7 +172,7 @@ New_int09           proc
         @@print_flag_value:
                     mov al, bl
                     and al, 1                   ; al = cur flag value
-                    add al, 48                  ; 48 is ASCII "0"
+                    add al, '0'                 
                     mov ah, TEXT_ATR            ; ah = attribute
                     stosw                       
 
@@ -195,8 +222,8 @@ New_int09           proc
                     mov ax, offset Draw_buf
                     CALL Print_buf
 
-                    POP ax bx cx dx si di bp sp ds es ss        ; recover regs
                     POPF
+                    POP ax bx cx dx si di bp ds es ss sp        ; recover regs
 
     @@end_of_int:   in al, 61h
                     or al, 80h                  ; port blinking
@@ -218,18 +245,19 @@ New_int09           proc
 
 ;                   NEW_INT08
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    this code block replaces original 09h interrapt. Prints all registers and flags into VM 
-;           by pressing "1" on keyboard
+; Descr:    replacement for int 08h (timer-tick); is triggered every 55ms. By timer-tick compares VM content
+;           with Draw_buf content and restores different characters in the same position from VM 
+;           to Save_buf and Draw_buf. 
 ; Entry:    --
 ; Exit:     --
-; Exp:      --
+; Exp:      Old INT 08h vector must be saved in Old_08_seg and Old_08_ofs
 ; Destr:    --
-; Save:     ax, bx, cx, dx, es
+; Save:     ax, bx, cx, dx, si, di, bp, ds, es, ss, sp + FLAGS
 ;------------------------------------------------------------------------------------------------------------------
 
 New_int08           proc
+                    PUSH sp ss es ds bp di si dx cx bx ax       ; save regs
                     PUSHF
-                    PUSH ss es ds sp bp di si dx cx bx ax       ; save regs
 
                     mov ax, 0b800h
                     mov es, ax
@@ -240,8 +268,8 @@ New_int08           proc
                     mov al, 20H                 ; send End-Of-Interrupt signal
                     out 20H, al                 ; to the 8259 Interrupt Controller
 
-                    POP ax bx cx dx si di bp sp ds es ss        ; recover regs
                     POPF
+                    POP ax bx cx dx si di bp ds es ss sp        ; recover regs
 
                     db 0eah                     ; jmp far to old int 08
                     Old_08_ofs dw 0

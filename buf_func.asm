@@ -1,11 +1,17 @@
 ;                   DRAW_BUF_CMP_VM
 ;------------------------------------------------------------------------------------------------------------------
 ; Descr:    compare characters (with their`s attributes) from VM with appropriate characters from Draw_buf
-;           and if they aren`t same, change current character in Draw_buf and Save_buf to another one from VM
+;           and if they aren`t same, change current character in Draw_buf and Save_buf to another one from VM.
 ; Entry:    --
 ; Exit:     --
 ; Exp:      es -> VM
 ;           ds -> data seg (equal code seg in model tiny)
+; Glob:   - Frame_wid
+;         - Frame_len
+;         - Frame_offset_VM -- offset in VM to frame`s upper-left corner position
+;         - New_line_remain -- offset from the last frame character in line 
+;                              to the first frame character in the line below 
+;         - Save_buf, Draw_buf which size equal to size of the frame
 ; Destr:    --
 ; Save:     ax, bx, si, di, cx, dx
 ;------------------------------------------------------------------------------------------------------------------
@@ -45,12 +51,18 @@ Draw_buf_cmp_VM     proc
 
 ;                   VM_COPY_TO_SAVE_BUF
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    copy screen area under the frame from VM to Save_buf.
+; Descr:    copy characters (with their`s attributes) from the VM to Save_buf. Works with area under the frame only.
 ; Entry:    --
 ; Exit:     --
 ; Exp:      --
+; Glob:   - Frame_wid
+;         - Frame_len
+;         - Frame_offset_VM -- offset in VM to frame`s upper-left corner position
+;         - New_line_remain -- offset from the last frame character in line 
+;                              to the first frame character in the line below 
+;         - Save_buf
 ; Destr:    --
-; Save:     ax, bx, si, di, cx, dx, ds
+; Save:     ax, bx, cx, si, di, ds, es
 ;------------------------------------------------------------------------------------------------------------------
 
 VM_copy_to_Save_buf proc
@@ -86,12 +98,17 @@ VM_copy_to_Save_buf proc
 
 ;                   Print_buf
 ;------------------------------------------------------------------------------------------------------------------
-; Descr:    print data from Save_buf into VM
+; Descr:    print data from buffer (which size Frame_len*Frame_wid) into VM.
 ; Entry:    ax -> start of printing buffer
 ; Exit:     --
 ; Exp:      ds -> code seg 
+; Glob:   - Frame_wid
+;         - Frame_len
+;         - Frame_offset_VM -- offset in VM to frame`s upper-left corner position
+;         - New_line_remain -- offset from the last frame character in line 
+;                              to the first frame character in the line below 
 ; Destr:    ax
-; Save:     cx, si, di, es, bx, ds
+; Save:     bx, cx, si, di, es, ds
 ;------------------------------------------------------------------------------------------------------------------
 
 Print_buf           proc
