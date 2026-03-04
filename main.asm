@@ -54,6 +54,12 @@ Start:              mov ax, 3509h                   ; find out adr of int 09h ha
 New_int09           proc
                     PUSH ax
 
+                    mov ah, 02h                 
+                    int 16h                     ; al = shift status information
+                    and al, 4                   ; bit-mask for getting ctrl-shift status
+                    test al, al
+                    jz @@end_of_int
+
                     in al, 60h                  ; al = scan-code 
 
                     cmp al, 3                   ; scan-code to print Save_buf
