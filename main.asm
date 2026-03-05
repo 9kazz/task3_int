@@ -52,7 +52,7 @@ Start:              mov ax, 3509h                   ; find out adr of int 09h ha
 ; Exit:     --
 ; Exp:      Old INT 09h vector must be saved in Old_09_seg and Old_09_ofs
 ; Destr:    --
-; Save:     ax, bx, cx, dx, si, di, bp, ds, es, ss, sp + FLAGS
+; Save:     ax, bx, cx, dx, si, di, bp, ds, es, ss, sp
 ; Notes:  - Uses Draw_buf as temporary buffer, then flips to VM
 ;         - Uses Save_buf to store and refresh actual screen condition under the frame
 ;
