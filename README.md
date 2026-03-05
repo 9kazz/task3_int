@@ -1,17 +1,17 @@
 # DOS TSR Debug Viewer
 
 ## Description
-DOS TSR Debug Viewer is a terminate-and-stay-resident (TSR) program for DOS. It allows you to instantly overlay a system information table on top of any running application to inspect CPU registers, flags, and stack contents.
+DOS TSR Debug Viewer is a terminate-and-stay-resident (TSR) program for DOS. It shows an information table on the top of any running application. It helps you to control CPU registers, flags, and stack contents.
 
 ## Features
 
-- Instant overlay: Displays information table without exiting the running program.
+- Instant showing: Print information table without exiting the running program.
 
 - Triple Buffering: Debug Viewer based on triple-buffering mechanics to save and restore the original screen content under and above the Debug Viewer`s frame. Save buffer stores actual screen condition under the frame; Draw buffer stores current frame condition; current screen image is stored in the Video memory (VM). 
 
-- Real-time Inspection: View current state of the registers, Flags, and Stack.
+- Real-time Control: You can view current state of the registers, Flags, and Stack.
 
-- Hotkey Controlled: Trigger the Debug Viewer with simple key combinations: Ctrl+1 to open the frame & Ctrl+2 to close the frame and return to previous screen condition.
+- Hotkey Trigger: You can trigger the Debug Viewer with key combinations: Ctrl+1 to open the frame & Ctrl+2 to close the frame and return to previous screen condition.
 
 - Pure Assembly: Written entirely in TASM (Turbo Assembler) to reach maximal performance and total control of the memory.
 
