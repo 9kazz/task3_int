@@ -72,12 +72,13 @@ Start:              mov ax, 3509h                   ; find out adr of int 09h ha
 ;            ║ ds = 89AF | o = 0 | 0000  ║
 ;            ║ es = B800 |       | DAA1  ║
 ;            ║ ss = 0100 |       | 97F0  ║
+;            ║ ip = 0777 |       | 0123  ║
+;            ║ cs = 12A0 |       | 0002  ║
 ;            ╚═══════════════════════════╝
 ;
 ;------------------------------------------------------------------------------------------------------------------
 
 New_int09           proc
-                    PUSHF
                     PUSH sp ss es ds bp di si dx cx bx ax   ; save regs
 
 ;                           === CHECK SCAN-CODE & PICK UP APPROPRIATE OPTION ===
@@ -111,7 +112,7 @@ New_int09           proc
                     PUSH bp                     ; save bp
                     mov di, offset Stack_buf 
 
-    @@save_stack:   mov ax, [bp + 30]           ; bp + 30 == the head of stack before int call
+    @@save_stack:   mov ax, [bp + 14*2]         ; bp = 26 (flag reg)
                     stosw
                     add bp, 2
                     loop @@save_stack
@@ -223,7 +224,6 @@ New_int09           proc
                     CALL Print_buf
 
     @@end_of_int:   POP ax bx cx dx si di bp ds es ss sp        ; recover regs
-                    POPF
 
                     in al, 61h
                     or al, 80h                  ; port blinking
@@ -286,17 +286,17 @@ include utils.asm
 ;==================================================================================================================
 
 ; Buffers & constants
-Count_of_regs       = 11
+Count_of_regs       = 13
 
-Frame_wid           = 16
+Frame_wid           = 18
 Frame_len           = 29
 Frame_size          = Frame_len * Frame_wid * 2
-Frame_offset_VM     = (26 + 4 * 80) * 2
+Frame_offset_VM     = (26 + 3 * 80) * 2
 New_line_remain     = (80 - Frame_len) * 2
 
 Draw_buf            db Frame_size dup (0)
 Save_buf            db Frame_size dup (0)
-Stack_buf           dw 11 dup(0)
+Stack_buf           dw Count_of_regs dup(0)
 
 include FRAMEBUF.asm                            ; frame template
 

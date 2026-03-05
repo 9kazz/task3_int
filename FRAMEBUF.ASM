@@ -50,25 +50,37 @@ Frame_arr           dw 9 dup(FRAME_ATR + ' '), FRAME_ATR + 'I', FRAME_ATR + 'N',
                     dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
                     dw FRAME_ATR + 0bah, FRAME_ATR + ' '
-                    dw FRAME_ATR + 's', FRAME_ATR + 'p',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "sp = $"
+                    dw FRAME_ATR + 'd', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "sp = $"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'd', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | d = $"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
                     dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
                     dw FRAME_ATR + 0bah, FRAME_ATR + ' '
-                    dw FRAME_ATR + 'd', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ds = $"
+                    dw FRAME_ATR + 'e', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ds = $"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', FRAME_ATR + 'o', FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'  ; " | o = $"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
                     dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
                     dw FRAME_ATR + 0bah, FRAME_ATR + ' '
-                    dw FRAME_ATR + 'e', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "es = $"
+                    dw FRAME_ATR + 's', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "es = $"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', 5 dup(FRAME_ATR + ' '), '%'                                              ; " |      %"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
                     dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
 
                     dw FRAME_ATR + 0bah, FRAME_ATR + ' '
-                    dw FRAME_ATR + 's', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ss = $"
+                    dw FRAME_ATR + 's', FRAME_ATR + 'p',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ip = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', 5 dup(FRAME_ATR + ' '), '%'                                              ; " |      %"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
+
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'c', FRAME_ATR + 's',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "cs = $"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', 5 dup(FRAME_ATR + ' '), '%'                                              ; " |      %"
+                    dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
+                    dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
+
+                    dw FRAME_ATR + 0bah, FRAME_ATR + ' '
+                    dw FRAME_ATR + 'i', FRAME_ATR + 'p',  FRAME_ATR + ' ', FRAME_ATR + '=', FRAME_ATR + ' ', '$'                                    ; "ss = $"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', 5 dup(FRAME_ATR + ' '), '%'                                              ; " |      %"
                     dw FRAME_ATR + ' ', FRAME_ATR + 0b3h, FRAME_ATR + ' ', '$'                                                                      ; " | $"
                     dw 2 dup(FRAME_ATR + ' '), FRAME_ATR + 0bah, '$'
