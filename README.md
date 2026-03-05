@@ -20,12 +20,12 @@ Debug Viewer can be used on DOS only, however you can install DOSBox virtual mac
 
 ### How to buid:
 Download the files or just clone the repository:
-> git clone https://github.com/9kazz/task3_int
+- git clone https://github.com/9kazz/task3_int
 
 Then assembly the program:
-> tasm /la main.asm
-> tlink /t main.obj
-> main.com
+- tasm /la main.asm
+- tlink /t main.obj
+- main.com
 
 ## Usage example:
 
