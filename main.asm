@@ -112,7 +112,7 @@ New_int09           proc
                     PUSH bp                     ; save bp
                     mov di, offset Stack_buf 
 
-    @@save_stack:   mov ax, [bp + 14*2]         ; bp = 26 (flag reg)
+    @@save_stack:   mov ax, [bp + 14*2]         ; bp = 28 (flag reg)
                     stosw
                     add bp, 2
                     loop @@save_stack
