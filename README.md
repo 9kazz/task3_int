@@ -1,9 +1,9 @@
-#DOS TSR Debug Viewer#
+# DOS TSR Debug Viewer
 
-##Description##
+## Description
 DOS TSR Debug Viewer is a terminate-and-stay-resident (TSR) program for DOS. It allows you to instantly overlay a system information table on top of any running application to inspect CPU registers, flags, and stack contents.
 
-##Features##
+## Features
 
 - Instant overlay: Displays information table without exiting the underlying program.
 
@@ -15,15 +15,15 @@ DOS TSR Debug Viewer is a terminate-and-stay-resident (TSR) program for DOS. It 
 
 - Pure Assembly: Written entirely in TASM (Turbo Assembler) to reach maximal performance and total control of the memory.
 
-##installation##
+## Installation
 Debug Viewer can be used on DOS only, however you can install DOSBox virtual machine to use program on other OS.
 
-###How to buid:###
+### How to buid:
 - tasm /la main.asm
 - tlink /t main.obl
 - main.com
 
-##Usage example:##
+## Usage example:
 
                      INFORMATION         
             ╔═══════════════════════════╗
