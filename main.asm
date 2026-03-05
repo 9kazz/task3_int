@@ -77,7 +77,8 @@ Start:              mov ax, 3509h                   ; find out adr of int 09h ha
 ;------------------------------------------------------------------------------------------------------------------
 
 New_int09           proc
-                    PUSH ax
+                    PUSHF
+                    PUSH sp ss es ds bp di si dx cx bx ax   ; save regs
 
 ;                           === CHECK SCAN-CODE & PICK UP APPROPRIATE OPTION ===
 
@@ -99,9 +100,6 @@ New_int09           proc
                     cmp al, 2                   ; scan-code to print Draw_buf
                     jne @@end_of_int
 
-                    PUSH sp ss es ds bp di si dx cx bx ax   ; save regs
-                    PUSHF
-
                     CALL VM_copy_to_Save_buf
 
                     mov ax, cs
@@ -110,6 +108,7 @@ New_int09           proc
 
                     mov cx, Count_of_regs       ; count of printing regs
                     mov bp, sp                  ; bp -> head of the stack
+                    PUSH bp                     ; save bp
                     mov di, offset Stack_buf 
 
     @@save_stack:   mov ax, [bp + 30]           ; bp + 30 == the head of stack before int call
@@ -133,14 +132,15 @@ New_int09           proc
                     stosw
                     jmp @@print_frame_uside
 
+
     @@new_line:     POP di
                     add di, Frame_len * 2           ; new line
                     PUSH di
                     jmp @@print_frame_uside
 
 ;                           === MAIN CYCLE: FILLING ONE LINE ===
-
     @@cycle_init:   POP di
+                    POP bp                          ; recover bp (stk ptr)
                     add di, Frame_len * 2           ; new line
                     mov cx, Count_of_regs           ; count of printing regs
 
@@ -222,10 +222,10 @@ New_int09           proc
                     mov ax, offset Draw_buf
                     CALL Print_buf
 
+    @@end_of_int:   POP ax bx cx dx si di bp ds es ss sp        ; recover regs
                     POPF
-                    POP ax bx cx dx si di bp ds es ss sp        ; recover regs
 
-    @@end_of_int:   in al, 61h
+                    in al, 61h
                     or al, 80h                  ; port blinking
                     out 61h, al
                     and al, not 80h
@@ -233,8 +233,6 @@ New_int09           proc
 
                     mov al, 20h                 ; report PPI about end of int
                     out 20h, al
-
-                    POP ax
                     
                     db 0eah                     ; jmp far to old int
                     Old_09_ofs dw 0
