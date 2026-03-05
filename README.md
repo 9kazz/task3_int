@@ -1,35 +1,35 @@
 # DOS TSR Debug Viewer
 
-## Description
-DOS TSR Debug Viewer is a terminate-and-stay-resident (TSR) program for DOS. It shows an information table on the top of any running application. It helps you to control registers, flags, and stack contents.
+## Описание
+DOS TSR Debug Viewer — это резидентая программа (TSR) для DOS. Она отображает информационную таблицу с текущим состоянием регистров, флагов и стека, позволяя пользователю отслеживать правильность исполненение его программы.
 
-## Features
+## Возможности
 
-- Triple Buffering: Debug Viewer based on triple-buffering mechanics to save and restore the original screen content under and above the Debug Viewer`s frame. Save buffer stores actual screen condition under the frame; Draw buffer stores current frame condition; current screen image is stored in the Video memory (VM). 
+- Тройная буферизация: Debug Viewer использует механизм тройной буферизации для сохранения и восстановления содержимого экрана под рамкой. Save_buf хранит актуальное состояние экрана под рамкой; Draw_buf хранит актуальное состояние рамки; текущее изображение выводится на экран из видеопамяти (Video memory (VM)).
 
-- Real time Control: You can view current state of the registers, Flags, and Stack.
+- Контроль в реальном времени: Вы можете наблюдать текущее состояние регистров, флагов и стека.
 
-- Hotkey Trigger: You can trigger the Debug Viewer with key combinations: Ctrl+1 to open the frame & Ctrl+2 to close the frame and return to previous screen condition.
+- Активация по горячей клавише: Debug Viewer вызывается комбинациями клавиш: Ctrl+1 для открытия окна и Ctrl+2 для закрытия окна и возврата к текущиму состоянию экрана под рамкой.
 
-- Pure Assembly: Debug Viewer is written entirely in TASM (Turbo Assembler) to reach maximal performance and total control of the memory.
+- Чистый Assembler: Debug Viewer полностью написан на TASM (Turbo Assembler) для достижения максимальной производительности и полного контроля над памятью.
 
-## Installation
-Debug Viewer can be used on DOS only, however you can install DOSBox virtual machine to use program on other OS.
+## Установка
+Debug Viewer работает только в операционной системе DOS, но вы можете установить виртуальную машину DOSBox для использования программы в других операционных системах.
 
-### How to buid:
-Download the files or just clone the repository:
+### Сборка:
+Скачайте файлы или клонируйте репозиторий:
 - git clone https://github.com/9kazz/task3_int
 
-Then assembly the program:
+Затем ассемблируйте программу:
 - tasm /la main.asm
 - tlink /t main.obj
 - main.com
 
-## Usage example:
+## Пример использования:
 
-                     INFORMATION         
+                     INFORMATION
             ╔═══════════════════════════╗
-            ║    REGS   | FLAGS | STACK ║
+            ║   REGS    | FLAGS | STACK ║
             ║---------------------------║
             ║ ax = 000A | c = 1 | 0001<-║
             ║ bx = 0230 | p = 0 | 0002  ║
