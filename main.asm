@@ -318,7 +318,7 @@ MouseClick_handler  proc
     
                     cli                            
                     mov bx, 08h * 4  
-                    mov ax, [Old_08_ofs]            
+                    mov ax, [Old_08_ofs]                
                     mov es:[bx], ax
                     mov ax, [Old_08_seg] 
                     mov es:[bx + 2], ax
@@ -334,7 +334,7 @@ MouseClick_handler  proc
                     CALL Print_buf
                     jmp @@end_of_func
 
-    @@full_screen:
+    @@full_screen:  CALL Full_screen
 
     @@end_of_func:  POP ds es ax
                     xor cx, cx

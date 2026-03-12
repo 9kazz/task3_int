@@ -142,3 +142,95 @@ Print_buf           proc
                     ret
 
                     endp
+
+
+Full_screen         proc
+                    PUSH cx dx di es 
+
+                    mov ax, 0b800h
+                    mov es, ax                  
+                    xor di, di                  ; es:[di] -> VM
+                    mov ax, FRAME_ATR + ' '     ; char to fill space
+
+;                               === FILL SPACE ABOVE THE FRAME ===
+
+                    mov dx, 5                   ; dx = count of lines above the frame
+    @@fill_above:   mov cx, 38
+                    rep stosw 
+
+                    mov ax, FRAME_ATR + 0b3h
+                    stosw
+                    mov ax, FRAME_ATR + ' '
+                    
+                    mov cx, 7
+                    rep stosw 
+
+                    mov ax, FRAME_ATR + 0b3h
+                    stosw
+                    mov ax, FRAME_ATR + ' '
+                    
+                    mov cx, 33
+                    rep stosw 
+
+                    dec dx
+                    test dx, dx
+                    jnz @@fill_above
+
+
+;                               === FILL BOTH SIDES OF THE FRAME ===
+
+                    mov cx, 27
+                    rep stosw
+
+                    add di, (Frame_len - 2) * 2
+                    mov cx, 26
+                    rep stosw
+
+                    mov ax, FRAME_ATR + 0c4h
+                    mov cx, 27
+                    rep stosw
+
+                    add di, (Frame_len - 2) * 2
+                    mov cx, 26
+                    rep stosw
+                    mov ax, FRAME_ATR + ' '
+
+                    mov dx, Frame_wid - 5
+    @@fill_sides:   mov cx, 27
+                    rep stosw
+
+                    add di, (Frame_len - 2) * 2
+                    mov cx, 26
+                    rep stosw
+
+                    dec dx
+                    test dx, dx
+                    jnz @@fill_sides                    
+
+;                               === FILL SPACE UNDER THE FRAME ===
+
+                    mov dx, 8                   ; dx = count of lines under the frame
+    @@fill_under:   mov cx, 38
+                    rep stosw 
+
+                    mov ax, FRAME_ATR + 0b3h
+                    stosw
+                    mov ax, FRAME_ATR + ' '
+                    
+                    mov cx, 7
+                    rep stosw 
+
+                    mov ax, FRAME_ATR + 0b3h
+                    stosw
+                    mov ax, FRAME_ATR + ' '
+                    
+                    mov cx, 33
+                    rep stosw 
+
+                    dec dx
+                    test dx, dx
+                    jnz @@fill_under
+
+                    POP es di dx cx
+                    ret
+                    endp
