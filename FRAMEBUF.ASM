@@ -1,7 +1,7 @@
 ; Prefixes to print flags ('%' means new line, '$' means end of text-block)
 TEXT_ATR            = 70h
 FRAME_ATR           = 7000h
-Frame_arr           dw 9 dup(FRAME_ATR + ' '), FRAME_ATR + 'I', FRAME_ATR + 'N', FRAME_ATR + 'F', FRAME_ATR + 'O', FRAME_ATR + 'R', FRAME_ATR + 'M', FRAME_ATR + 'A', FRAME_ATR + 'T', FRAME_ATR + 'I', FRAME_ATR + 'O', FRAME_ATR + 'N', 9 dup(FRAME_ATR + ' '), '%'    ; "         INFORMATION         %"
+Frame_arr           dw 9 dup(FRAME_ATR + ' '), FRAME_ATR + 'I', FRAME_ATR + 'N', FRAME_ATR + 'F', FRAME_ATR + 'O', FRAME_ATR + 'R', FRAME_ATR + 'M', FRAME_ATR + 'A', FRAME_ATR + 'T', FRAME_ATR + 'I', FRAME_ATR + 'O', FRAME_ATR + 'N', 4 dup(FRAME_ATR + ' '), FRAME_ATR + '_', FRAME_ATR + ' ', FRAME_ATR + 0feh, FRAME_ATR + ' ', FRAME_ATR + 'x', '%'    ; "         INFORMATION    _  ? x%"
                     dw FRAME_ATR + 0c9h, 27 dup(FRAME_ATR + 0cdh), FRAME_ATR + 0bbh, '%'                                                            ; upper frame side
                     dw FRAME_ATR + 0bah, 4 dup(FRAME_ATR + ' '), FRAME_ATR + 'R', FRAME_ATR + 'E', FRAME_ATR + 'G', FRAME_ATR + 'S', 3 dup(FRAME_ATR + ' '), FRAME_ATR + 0b3h, 1 dup(FRAME_ATR + ' '), FRAME_ATR + 'F', FRAME_ATR + 'L', FRAME_ATR + 'A', FRAME_ATR + 'G', FRAME_ATR + 'S', 1 dup(FRAME_ATR + ' '), FRAME_ATR + 0b3h, 1 dup(FRAME_ATR + ' '), FRAME_ATR + 'S', FRAME_ATR + 'T', FRAME_ATR + 'A', FRAME_ATR + 'C' , FRAME_ATR + 'K', 1 dup (FRAME_ATR + ' '), FRAME_ATR + 0bah, '%'
                     ; "|   REGS   FLAGS   STACK   |"

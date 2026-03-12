@@ -81,7 +81,7 @@ Start:              mov ax, 3509h                   ; find out adr of int 09h ha
 New_int09           proc
                     PUSH sp ss es ds bp di si dx cx bx ax   ; save regs
 
-;                           === CHECK SCAN-CODE & PICK UP APPROPRIATE OPTION ===
+;                           === CHECK CTRL PRESSED ===
 
                     mov ax, 40h
                     mov es, ax                  
@@ -91,10 +91,23 @@ New_int09           proc
                     test al, al
                     jz @@end_of_int
 
+;                           === CHECK SCAN-CODE & PICK UP APPROPRIATE OPTION ===
+
                     in al, 60h                  ; al = scan-code 
 
                     cmp al, 3                   ; scan-code to print Save_buf
                     jne @@check_draw_buf
+
+;                           === SET UP NEW MOUSE HANDLER ===
+
+                    push cs
+                    pop es
+                    mov dx, offset MouseClick_handler
+                    mov ax, 000ch                   ; set mouse-click handler
+                    mov cx, 0                       ; set event mask
+                    int 33h
+
+
                     mov ax, offset Save_buf
                     CALL Print_buf
                     jmp @@end_of_int
@@ -102,6 +115,14 @@ New_int09           proc
     @@check_draw_buf:   
                     cmp al, 2                   ; scan-code to print Draw_buf
                     jne @@end_of_int
+
+                    push cs
+                    pop es
+                    mov dx, offset MouseClick_handler
+                    mov ax, 000ch                   ; set mouse-click handler
+                    mov cx, 02h                     ; set event mask
+                    int 33h
+
 
                     CALL VM_copy_to_Save_buf
 
@@ -270,23 +291,52 @@ New_int08           proc
 
 
 MouseClick_handler  proc
-                    PUSH ax
+                    PUSH ax es ds
+                    PUSH cs
+                    POP ds
 
                     test bx, 1
                     jz @@end_of_func
 
-                    ; shr cx, 3                   ; hor position in chars
-                    ; shr dx, 3                   ; vert position in chars
+                    shr cx, 3                   ; hor position in chars
+                    shr dx, 3                   ; vert position in chars
 
-                    ; cmp cx, 55                  ; compare right-upper corner position with mouse-click position
-                    ;     jne @@end_of_func
-                    ; cmp dx, 4
-                    ;     jne @@end_of_func
+                    cmp dx, 3
+                    jne @@end_of_func           ; compare right-upper corner position with mouse-click position
 
-                    mov ax, offset Save_buf
+                    cmp cx, 50
+                        je @@pop_down
+                    cmp cx, 52
+                        je @@full_screen
+                    cmp cx, 54
+                        je @@close
+
+                    jmp @@end_of_func
+                    
+    @@close:        push 0
+                    pop es
+    
+                    cli                            
+                    mov bx, 08h * 4  
+                    mov ax, [Old_08_ofs]            
+                    mov es:[bx], ax
+                    mov ax, [Old_08_seg] 
+                    mov es:[bx + 2], ax
+    
+                    mov bx, 09h * 4               
+                    mov ax, [Old_09_ofs]            
+                    mov es:[bx], ax
+                    mov ax, [Old_09_seg] 
+                    mov es:[bx + 2], ax        
+                    sti                         
+
+    @@pop_down:     mov ax, offset Save_buf
                     CALL Print_buf
+                    jmp @@end_of_func
 
-    @@end_of_func:  POP ax
+    @@full_screen:
+
+    @@end_of_func:  POP ds es ax
                     xor cx, cx
                     retf
                     endp
