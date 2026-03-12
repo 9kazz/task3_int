@@ -13,7 +13,7 @@ Start:              mov ax, 3509h                   ; find out adr of int 09h ha
                     mov bx, es
                     mov Old_09_seg, bx
 
-                    mov ax, 3508h                   ; find out adr of int 09h handler
+                    mov ax, 3508h                   ; find out adr of int 08h handler
                     int 21h
                     mov Old_08_ofs, bx
                     mov bx, es
@@ -83,9 +83,11 @@ New_int09           proc
 
 ;                           === CHECK SCAN-CODE & PICK UP APPROPRIATE OPTION ===
 
-                    mov ah, 02h                 
-                    int 16h                     ; al = shift status information
-                    and al, 4                   ; bit-mask for getting ctrl-shift status
+                    mov ax, 40h
+                    mov es, ax                  
+                    mov bx, 17h                 ; 40:0017 BIOS
+                    mov al, byte ptr es:[bx]    ; al = shift status information
+                    and al, 04h                 ; bit-mask for getting ctrl-shift status
                     test al, al
                     jz @@end_of_int
 
@@ -224,21 +226,11 @@ New_int09           proc
                     CALL Print_buf
 
     @@end_of_int:   POP ax bx cx dx si di bp ds es ss sp        ; recover regs
-
-                    in al, 61h
-                    or al, 80h                  ; port blinking
-                    out 61h, al
-                    and al, not 80h
-                    out 61h, al    
-
-                    mov al, 20h                 ; report PPI about end of int
-                    out 20h, al
                     
                     db 0eah                     ; jmp far to old int
                     Old_09_ofs dw 0
                     Old_09_seg dw 0
 
-                    iret                        ; return from jmp far
                     endp
 
 ;                   NEW_INT08
@@ -273,8 +265,32 @@ New_int08           proc
                     Old_08_ofs dw 0
                     Old_08_seg dw 0
 
-                    iret                        ; return from jmp far
                     endp
+
+
+
+MouseClick_handler  proc
+                    PUSH ax
+
+                    test bx, 1
+                    jz @@end_of_func
+
+                    ; shr cx, 3                   ; hor position in chars
+                    ; shr dx, 3                   ; vert position in chars
+
+                    ; cmp cx, 55                  ; compare right-upper corner position with mouse-click position
+                    ;     jne @@end_of_func
+                    ; cmp dx, 4
+                    ;     jne @@end_of_func
+
+                    mov ax, offset Save_buf
+                    CALL Print_buf
+
+    @@end_of_func:  POP ax
+                    xor cx, cx
+                    retf
+                    endp
+
 
 ;                   FUNCTIONS INCLUDES
 ;==================================================================================================================

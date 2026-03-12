@@ -115,8 +115,8 @@ Print_buf           proc
 
                     PUSH cx si di es bx ds
 
-                    mov si, ax                  ; si -> start of Save_buf
-                    mov di, Frame_offset_VM     ; di -> start position in VM
+                    mov si, ax                  ; si -> start of the buffer
+                    mov di, Frame_offset_VM     ; di -> start position in VM     
 
                     mov ax, 0b800h
                     mov es, ax                  ; es -> VM
