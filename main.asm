@@ -276,9 +276,6 @@ New_int08           proc
                     mov ds, ax
                     CALL Draw_buf_cmp_VM
 
-                    mov al, 20H                 ; send End-Of-Interrupt signal
-                    out 20H, al                 ; to the 8259 Interrupt Controller
-
                     POPF
                     POP ax bx cx dx si di bp ds es ss sp        ; recover regs
 
